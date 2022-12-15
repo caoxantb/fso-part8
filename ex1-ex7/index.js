@@ -1,5 +1,22 @@
 import { ApolloServer, gql } from "apollo-server";
 import { v4 as uuidv4 } from "uuid";
+import mongoose from "mongoose";
+
+import Author from "./models/author.js";
+import Book from "./models/book.js"
+
+const MONGODB_URI = 'mongodb://127.0.0.1:27017/fsopart8'
+
+console.log('connecting to', MONGODB_URI)
+
+mongoose.set('strictQuery', false)
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log('connected to MongoDB')
+  })
+  .catch((error) => {
+    console.log('error connection to MongoDB:', error.message)
+  })
 
 let authors = [
   {
@@ -97,8 +114,8 @@ const typeDefs = gql`
   type Query {
     bookCount: Int!
     authorCount: Int!
-    allBooks(author: String, genres: String): [Books!]!
-    allAuthors: [Authors!]!
+    allBooks(author: String, genres: String): [Book!]!
+    allAuthors: [Author!]!
   }
   type Mutation {
     addBook(
@@ -106,17 +123,17 @@ const typeDefs = gql`
       published: Int!
       author: String!
       genres: [String]!
-    ): Books
-    editAuthor(name: String!, born: Int!): Authors
+    ): Book
+    editAuthor(name: String!, born: Int!): Author
   }
-  type Books {
+  type Book {
     title: String!
     published: Int!
     author: String!
     id: String!
     genres: [String]!
   }
-  type Authors {
+  type Author {
     name: String!
     id: String!
     born: Int
@@ -126,25 +143,27 @@ const typeDefs = gql`
 
 const resolvers = {
   Query: {
-    bookCount: () => books.length,
-    authorCount: () => authors.length,
-    allBooks: (root, args) => {
+    bookCount: async () => Book.collection.countDocuments(),
+    authorCount: () => Author.collection.countDocuments(),
+    allBooks: async (root, args) => {
       const argsKeys = Object.keys(args);
+      const books = Book.find({})
       const booksReturned = argsKeys.reduce(
         (acc, cur) => acc.filter((book) => book[cur].includes(args[cur])),
         books
       );
       return booksReturned;
     },
-    allAuthors: () => [...authors],
+    allAuthors: async () => Author.find({}),
   },
   Mutation: {
     addBook: (root, args) => {
-      const book = { ...args, id: uuidv4() };
-      books = [...books, book];
-      if (!authors.find((author) => author === args.author))
-        authors = [...authors, { name: args.author, id: uuidv4(), born: null }];
-      return book;
+      const book = new Book({...args})
+      // books = [...books, book];
+      // if (!authors.find((author) => author === args.author))
+      //   authors = [...authors, { name: args.author, id: uuidv4(), born: null }];
+      // return book;
+      return book.save()
     },
     editAuthor: (root, args) => {
       const authorToUpdate = authors.find(
@@ -159,7 +178,7 @@ const resolvers = {
       return updatedAuthor;
     },
   },
-  Authors: {
+  Author: {
     bookCount: (root) =>
       books.filter((book) => book.author === root.name).length,
   },
