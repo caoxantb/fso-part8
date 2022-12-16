@@ -3,20 +3,21 @@ import { v4 as uuidv4 } from "uuid";
 import mongoose from "mongoose";
 
 import Author from "./models/author.js";
-import Book from "./models/book.js"
+import Book from "./models/book.js";
 
-const MONGODB_URI = 'mongodb://127.0.0.1:27017/fsopart8'
+const MONGODB_URI = "mongodb://127.0.0.1:27017/fsopart8";
 
-console.log('connecting to', MONGODB_URI)
+console.log("connecting to", MONGODB_URI);
 
-mongoose.set('strictQuery', false)
-mongoose.connect(MONGODB_URI)
+mongoose.set("strictQuery", false);
+mongoose
+  .connect(MONGODB_URI)
   .then(() => {
-    console.log('connected to MongoDB')
+    console.log("connected to MongoDB");
   })
   .catch((error) => {
-    console.log('error connection to MongoDB:', error.message)
-  })
+    console.log("error connection to MongoDB:", error.message);
+  });
 
 let authors = [
   {
@@ -117,70 +118,79 @@ const typeDefs = gql`
     allBooks(author: String, genres: String): [Book!]!
     allAuthors: [Author!]!
   }
+
   type Mutation {
     addBook(
       title: String!
       published: Int!
-      author: String!
+      author: AuthorInput!
       genres: [String]!
     ): Book
     editAuthor(name: String!, born: Int!): Author
   }
+
   type Book {
     title: String!
     published: Int!
-    author: String!
-    id: String!
+    author: Author!
     genres: [String]!
   }
+
   type Author {
     name: String!
-    id: String!
     born: Int
     bookCount: Int!
+  }
+
+  input AuthorInput {
+    name: String!
+    born: Int
   }
 `;
 
 const resolvers = {
   Query: {
     bookCount: async () => Book.collection.countDocuments(),
-    authorCount: () => Author.collection.countDocuments(),
+    authorCount: async () => Author.collection.countDocuments(),
     allBooks: async (root, args) => {
-      const argsKeys = Object.keys(args);
-      const books = Book.find({})
-      const booksReturned = argsKeys.reduce(
-        (acc, cur) => acc.filter((book) => book[cur].includes(args[cur])),
-        books
-      );
-      return booksReturned;
+      let author;
+      if (args.author) author = await Author.find({ name: args.author });
+
+      const queryBuilder = (args) => ({
+        ...(args.author && { author: author }),
+        ...(args.genres && { genres: { $in: [args.genres] } }),
+      });
+
+      const books = Book.find(queryBuilder(args));
+
+      return books;
     },
     allAuthors: async () => Author.find({}),
   },
-  Mutation: {
-    addBook: (root, args) => {
-      const book = new Book({...args})
-      // books = [...books, book];
-      // if (!authors.find((author) => author === args.author))
-      //   authors = [...authors, { name: args.author, id: uuidv4(), born: null }];
-      // return book;
-      return book.save()
-    },
-    editAuthor: (root, args) => {
-      const authorToUpdate = authors.find(
-        (author) => author.name === args.name
-      );
-      if (!authorToUpdate) return null;
 
-      const updatedAuthor = { ...authorToUpdate, born: args.born };
-      authors = authors.map((author) =>
-        author.name === args.name ? updatedAuthor : author
-      );
-      return updatedAuthor;
+  Mutation: {
+    addBook: async (root, args) => {
+      if (args.title.name.length < 2) throw new UserInputError("Title name length < 2")
+      let author = await Author.findOne({ name: args.author.name });
+      if (!author) {
+        if (args.author.name.length < 3)
+          throw new UserInputError("Author name length < 3");
+        const newAuthor = new Author({
+          ...args.author,
+        });
+        await newAuthor.save();
+        author = newAuthor;
+      }
+      const book = new Book({ ...args, author: author });
+      return book.save();
+    },
+
+    editAuthor: async (root, args) => {
+      return Author.findOneAndUpdate({name: args.name}, {born: args.born})
     },
   },
   Author: {
-    bookCount: (root) =>
-      books.filter((book) => book.author === root.name).length,
+    bookCount: async (root) => Book.find({ author: root }).countDocuments(),
   },
 };
 
