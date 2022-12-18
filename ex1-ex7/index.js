@@ -6,6 +6,7 @@ import Author from "./models/author.js";
 import Book from "./models/book.js";
 import User from "./models/user.js";
 import { UserInputError } from "apollo-server";
+import { AuthenticationError } from "apollo-server";
 
 const MONGODB_URI = "mongodb://127.0.0.1:27017/fsopart8";
 const JWT_SECRET = "SECRET_KEY";
@@ -97,7 +98,8 @@ const resolvers = {
   },
 
   Mutation: {
-    addBook: async (root, args) => {
+    addBook: async (root, args, context) => {
+      if(!context.currentUser) throw AuthenticationError("No user found")
       if (args.title.name.length < 2)
         throw new UserInputError("Title name length < 2");
       let author = await Author.findOne({ name: args.author.name });
@@ -114,7 +116,8 @@ const resolvers = {
       return book.save();
     },
 
-    editAuthor: async (root, args) => {
+    editAuthor: async (root, args, context) => {
+      if(!context.currentUser) throw new AuthenticationError("No user found")
       return Author.findOneAndUpdate({ name: args.name }, { born: args.born });
     },
 
