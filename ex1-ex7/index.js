@@ -87,7 +87,9 @@ const resolvers = {
         ...(args.genres && { genres: { $in: [args.genres] } }),
       });
 
-      const books = Book.find(queryBuilder(args));
+      const books = Book.find(queryBuilder(args)).populate('author');
+
+      console.log(books)
 
       return books;
     },
