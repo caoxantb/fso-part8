@@ -5,7 +5,8 @@ import NewBook from "./components/NewBook";
 
 import { useQuery, useMutation, useApolloClient } from "@apollo/client";
 import { LOGIN } from "./services/mutations";
-import Login from "./components/Login.js";
+import Login from "./components/Login.jsx";
+import Recommendation from "./components/Recommendation";
 
 const App = () => {
   const [page, setPage] = useState("authors");
@@ -42,9 +43,10 @@ const App = () => {
       <div>
         <button onClick={() => setPage("authors")}>authors</button>
         <button onClick={() => setPage("books")}>books</button>
-        {token ? (
+        {localStorage["user-token"] ? (
           <>
             <button onClick={() => setPage("add")}>add book</button>
+            <button onClick={() => setPage("recommendation")}>recommendation</button>
             <button onClick={logout}>logout</button>
           </>
         ) : (
@@ -55,6 +57,7 @@ const App = () => {
       <Authors show={page === "authors"} />
       <Books show={page === "books"} />
       <NewBook show={page === "add"} />
+      <Recommendation show={page === "recommendation"} />
       <Login
         show={page === "login"}
         submit={submit}

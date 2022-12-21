@@ -66,6 +66,7 @@ const typeDefs = gql`
 
   type User {
     username: String!
+    favouriteGenre: String!
     id: ID!
   }
 
@@ -89,8 +90,6 @@ const resolvers = {
 
       const books = Book.find(queryBuilder(args)).populate('author');
 
-      console.log(books)
-
       return books;
     },
     allAuthors: async () => Author.find({}),
@@ -102,7 +101,7 @@ const resolvers = {
   Mutation: {
     addBook: async (root, args, context) => {
       if(!context.currentUser) throw AuthenticationError("No user found")
-      if (args.title.name.length < 2)
+      if (args.title.length < 2)
         throw new UserInputError("Title name length < 2");
       let author = await Author.findOne({ name: args.author.name });
       if (!author) {

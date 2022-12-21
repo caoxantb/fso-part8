@@ -1,13 +1,19 @@
 import { useQuery } from "@apollo/client";
+import {useState} from 'react'
 
 import { ALL_BOOKS } from "../services/queries";
 
+let num = 0
+
 const Books = (props) => {
+  const [genre, setGenre] = useState("all")
+  const [initialBooks, setInitialBooks] = useState(null)
+
   const response = useQuery(ALL_BOOKS, {
+    variables: genre === 'all' ? {} : { genres: genre },
+    refetchQueries: [  {query: ALL_BOOKS} ],
     pollInterval: 2000,
   });
-
-  console.log(response)
 
   if (!props.show) {
     return null;
@@ -18,7 +24,15 @@ const Books = (props) => {
   }
 
   const books = response.data.allBooks;
+  if (num === 0) setInitialBooks(books)
+  num++;
+  
+  const genresWithDuplication = initialBooks?.map(book => book.genres).reduce((acc, cur) => [...acc, ...cur], ["all"])
+  const genres = [...new Set(genresWithDuplication)]
 
+  const chooseGenre = (e) => {
+    setGenre(e.target.id)
+  }
 
   return (
     <div>
@@ -40,6 +54,12 @@ const Books = (props) => {
           ))}
         </tbody>
       </table>
+
+      <div>
+        {genres.map(genre => <button id={genre} onClick={chooseGenre}>{genre}</button>)}
+      </div>
+
+
     </div>
   );
 };
